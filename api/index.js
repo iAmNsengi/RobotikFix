@@ -6,14 +6,16 @@ const User = require("./models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const secret = "iTs %%a*S3CrE7";
+const cookieParser = require("cookie-parser");
 
-app.use(express.json());
 const corsOptions = {
   origin: "http://localhost:3000",
   credentials: true, // Allow credentials (cookies, authorization headers, etc.)
 };
 
 app.use(cors(corsOptions));
+app.use(express.json());
+app.use(cookieParser());
 
 mongoose.connect(
   "mongodb+srv://iamnsengi:" +
@@ -29,17 +31,14 @@ app.post("/register", async (req, res) => {
   const { username, password } = req.body;
   try {
     const salt = await bcrypt.genSalt(10);
-    userDoc = await User.create({
+    const userDoc = await User.create({
       username,
       password: bcrypt.hashSync(password, salt),
-    })
-      .then(() => {
-        res.status(201).json(userDoc);
-      })
-      .catch((err) => {
-        console.log(err);
-        res.status(500).json(err);
-      });
+    }).catch((err) => {
+      console.log(err);
+      res.status(500).json(err);
+    });
+    if (userDoc) return res.status(201).json(userDoc);
   } catch (e) {
     console.log(e);
     res.status(400).json(e);
@@ -66,6 +65,18 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.get("/profile", (req, res) => {
+  const { token } = req.cookies;
+  jwt.verify(token, secret, {}, (err, info) => {
+    if (err) throw err;
+    res.json(info);
+  });
+  res.json(req.cookies);
+});
+
+app.post("/logout", (req, res) => {
+  res.cookie("token", "").json("ok");
+});
 app.listen(4000, () => {
   console.log("Server is running on port 4000");
 });
